@@ -7,6 +7,7 @@ TOOLS_DIR = tools
 BIN_DIR = bin
 
 ifeq ($(OS),Windows_NT)
+    SHELL = cmd.exe
     EXE = .exe
     CFLAGS += -DPDC_NCMOUSE
     LDFLAGS ?= -lpdcurses_wincon -lwinmm
