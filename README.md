@@ -25,7 +25,14 @@ invmansys/
 
 ### Prerequisites
 
-To build and run this project, you will need a C compiler (`gcc`), `make`, and the `ncurses` development library. 
+To build and run this project, you will need a C compiler (`gcc`), `make` (or `mingw32-make` on Windows), and the curses development library:
+- On **Linux**, `ncurses` is used.
+- On **Windows**, `PDCurses` is used.
+
+**Windows (MSYS2 / MinGW-w64 UCRT64):**
+```bash
+pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-pdcurses
+```
 
 **Debian/Ubuntu-based:**
 ```bash
@@ -52,9 +59,11 @@ sudo pacman -S base-devel ncurses
    ```
 
 2. **Build the project:**
-   Compile the main application and utility tools using `make`:
+   Compile the main application and utility tools using `make` (or `mingw32-make` on Windows):
    ```bash
    make
+   # On Windows:
+   # mingw32-make
    ```
    The compiled binaries will be placed in the `bin/` directory.
 
@@ -62,7 +71,7 @@ sudo pacman -S base-devel ncurses
    You can start the inventory management system using:
    ```bash
    make run
-   # or run directly: ./bin/invmansys
+   # or run directly: ./bin/invmansys (Linux) or .\bin\invmansys.exe (Windows)
    ```
 
 4. **Clean build files (optional):**

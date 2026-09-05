@@ -1,6 +1,17 @@
 #include "../include/ui.h"
 #include "../include/config.h"
+#if defined(_WIN32) || defined(USE_PDCURSES)
+#ifndef PDC_NCMOUSE
+#define PDC_NCMOUSE
+#endif
+#if defined(__has_include) && __has_include(<pdcurses.h>)
+#include <pdcurses.h>
+#else
+#include <curses.h>
+#endif
+#else
 #include <ncurses.h>
+#endif
 #include <string.h>
 #include <stdlib.h>
 
@@ -233,7 +244,7 @@ static void handle_stock_report(InventoryDb *db) {
         }
         
         mvwhline(win, h - 3, 1, ACS_HLINE, w - 2);
-        mvwprintw(win, h - 2, 2, "Total Items: %zu   Total Investment: %.2f", db->count, inv_calculate_total_investment(db));
+        mvwprintw(win, h - 2, 2, "Total Items: %lu   Total Investment: %.2f", (unsigned long)db->count, inv_calculate_total_investment(db));
         mvwprintw(win, h - 2, w - 25, "UP/DOWN scroll, Q quit");
 
         wrefresh(win);
@@ -409,7 +420,7 @@ void ui_run(InventoryDb *db) {
             }
         }
 
-        mvprintw(15, 5, "Total Items: %zu", db->count);
+        mvprintw(15, 5, "Total Items: %lu", (unsigned long)db->count);
 
         refresh();
         ch = getch();
