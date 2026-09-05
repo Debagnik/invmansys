@@ -1,6 +1,9 @@
 # invmansys
 (from c_rep)
 
+[![CI Build Check](https://github.com/Debagnik/c_rep/actions/workflows/ci.yml/badge.svg)](https://github.com/Debagnik/c_rep/actions/workflows/ci.yml)
+[![Build and Release](https://github.com/Debagnik/c_rep/actions/workflows/release.yml/badge.svg)](https://github.com/Debagnik/c_rep/actions/workflows/release.yml)
+
 A Terminal-based Inventory Management System written in C.
 
 ## Description
@@ -173,6 +176,28 @@ To import data from a CSV file into a new or existing database:
 ```
 
 **Note:** The CSV file should include the following headers for proper mapping: `ItemCode`, `ItemName`, `Unit`, `Price`, `Quantity`, and `ReorderLevel`. The import tool can interactively handle missing headers or gracefully skip records.
+
+---
+
+## CI/CD & Automated Releases
+
+The repository includes automated GitHub Actions workflows:
+
+### 1. Continuous Integration (`ci.yml`)
+Runs automatically on every `push` and `pull_request` targeting `master`. It builds and tests the codebase across:
+- **Ubuntu / Debian** (Linux)
+- **Fedora** (Linux container)
+- **Windows** (MinGW-w64 UCRT64 + PDCurses)
+
+### 2. Automated Release Workflow (`release.yml`)
+Allows you to trigger an on-demand multi-platform build and release directly from GitHub:
+1. Go to the **Actions** tab in your GitHub repository.
+2. Select **Build and Release** from the left sidebar.
+3. Click **Run workflow**:
+   - Choose the version bump type: `patch` (e.g. `v2.0.1`), `minor` (`v2.1.0`), or `major` (`v3.0.0`).
+   - (Optional) Enter a custom tag name (e.g. `v2.0.5`).
+   - (Optional) Check "Create as draft release" to review before publishing.
+4. The workflow builds all executables, packages them into platform archives (`.tar.gz` and `.zip`), creates the Git tag, and publishes the GitHub Release with the binary assets attached.
 
 ## License
 
