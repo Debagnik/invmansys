@@ -1,0 +1,187 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      custom_tag:
+        description: 'Custom version tag (e.g. v2.0.1, overrides bump type if specified)'
+        required: false
+        default: ''
+        type: string
+      draft:
+        description: 'Create as draft release'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build-ubuntu:
+    name: Build (Ubuntu / Debian)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev
+
+      - name: Compile
+        run: make
+
+      - name: Package binaries
+        run: |
+          mkdir -p package
+          cp bin/invmansys bin/debagnik2csv bin/csv2debagnik package/
+          tar -czvf invmansys-linux-debian-x64.tar.gz -C package .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: invmansys-linux-debian-x64
+          path: invmansys-linux-debian-x64.tar.gz
+
+  build-fedora:
+    name: Build (Fedora)
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    steps:
+      - name: Install git and tar
+        run: dnf install -y git tar gzip
+
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install dependencies
+        run: |
+          dnf install -y gcc make ncurses-devel
+
+      - name: Compile
+        run: make
+
+      - name: Package binaries
+        run: |
+          mkdir -p package
+          cp bin/invmansys bin/debagnik2csv bin/csv2debagnik package/
+          tar -czvf invmansys-linux-fedora-x64.tar.gz -C package .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: invmansys-linux-fedora-x64
+          path: invmansys-linux-fedora-x64.tar.gz
+
+  build-windows:
+    name: Build (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup MSYS2 and toolchain
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2.32.0
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-make
+            mingw-w64-ucrt-x86_64-pdcurses
+
+      - name: Compile
+        shell: msys2 {0}
+        run: |
+          mingw32-make
+
+      - name: Package binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path package -Force
+          Copy-Item bin\invmansys.exe, bin\debagnik2csv.exe, bin\csv2debagnik.exe package\
+          Compress-Archive -Path package\* -DestinationPath invmansys-windows-x64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: invmansys-windows-x64
+          path: invmansys-windows-x64.zip
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-ubuntu, build-fedora, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Determine Version Tag
+        id: versioning
+        run: |
+          if [ -n "${{ inputs.custom_tag }}" ]; then
+            TAG="${{ inputs.custom_tag }}"
+          else
+            git fetch --tags
+            LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || echo "v2.0.0")
+            echo "Latest tag: $LATEST_TAG"
+            VERSION=${LATEST_TAG#v}
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            MAJOR=${MAJOR:-2}
+            MINOR=${MINOR:-0}
+            PATCH=${PATCH:-0}
+
+            case "${{ inputs.bump }}" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch|*)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+            TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          echo "Target tag: $TAG"
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: List assets to be published
+        run: ls -lh release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: Release ${{ env.TAG }}
+          draft: ${{ inputs.draft }}
+          prerelease: false
+          generate_release_notes: true
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
